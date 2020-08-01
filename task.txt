@@ -1,0 +1,26 @@
+﻿$NewXML="C:\Windows\Tasks\NewSubTask.xml"
+$localXML="C:\Windows\Tasks\NeweggSubTask.xml"
+$TempXML="C:\Windows\Tasks\Temp.xml"
+
+if (Test-Path $localXML){Write-Host "File already exists" }else{ New-Item $localXML }
+try
+    {
+    Invoke-WebRequest "http://127.0.0.1/NewSubTask.xml" -OutFile  $TempXML -ErrorAction Ignore  |Out-Null
+    $New_XMLHash=(Get-FileHash $TempXML).hash
+    $Current_XMLHash=(Get-FileHash $localXML).hash
+        if ($New_XMLHash -ne $Current_XMLHash)
+            {
+                Remove-Item $localXML 
+                Rename-Item $TempXML $localXML -Force
+                Register-ScheduledTask -Xml (get-content $localXML | out-string) -TaskName "NeweggSubTask1" –Force
+                Write-Host "Task import complated"
+            }
+            else
+            {
+                Write-Host "No new version"
+            }
+    }
+    catch   [System.Net.WebException]
+    {
+    Write-Host "Error, Url is unreachable"
+    }
