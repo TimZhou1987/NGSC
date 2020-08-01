@@ -1,3 +1,2 @@
 NewSubTask1.xml
 NewSubTask2.xml
-New3.xml
