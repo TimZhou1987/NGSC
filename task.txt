@@ -1,23 +1,42 @@
-﻿$NewXML="C:\Windows\Tasks\NewSubTask.xml"
-$localXML="C:\Windows\Tasks\NeweggSubTask.xml"
-$TempXML="C:\Windows\Tasks\Temp.xml"
+$LocalVer="C:\Windows\Tasks\LocalVer.txt"
+$TempVer="C:\Windows\Tasks\TempVer.txt"
+$CloudVer="https://raw.githubusercontent.com/supportitussystem/NGSC/master/ver.txt" #此文件中不能有空行
+$CloudTaskDir="https://raw.githubusercontent.com/supportitussystem/NGSC/master/task_config"
 
-if (Test-Path $localXML){Write-Host "File already exists" }else{ New-Item $localXML }
+if (Test-Path $LocalVer){Write-Host "Local version file already exists" }else{ New-Item $LocalVer }
 try
     {
-    Invoke-WebRequest "http://127.0.0.1/NewSubTask.xml" -OutFile  $TempXML -ErrorAction Ignore  |Out-Null
-    $New_XMLHash=(Get-FileHash $TempXML).hash
-    $Current_XMLHash=(Get-FileHash $localXML).hash
-        if ($New_XMLHash -ne $Current_XMLHash)
+    Invoke-WebRequest "$CloudVer" -OutFile  $TempVer -ErrorAction Ignore |Out-Null
+    $XML=Get-Content $TempVer
+    $New_VerHash=(Get-FileHash $TempVer).hash
+    $Current_VerHash=(Get-FileHash $LocalVer).hash
+
+        if ($Current_VerHash -ne  $New_VerHash)
             {
-                Remove-Item $localXML 
-                Rename-Item $TempXML $localXML -Force
-                Register-ScheduledTask -Xml (get-content $localXML | out-string) -TaskName "NeweggSubTask1" –Force
+                Remove-Item $LocalVer 
+                Rename-Item $TempVer $LocalVer -Force
+                foreach ($task in $XML)
+                {
+                    $TaskName=$task -replace ("(.xml)",(""))
+                    #Write-Host " Downloading $CloudTaskDir/$task"
+                    
+                    if (($TaskName).StartsWith("-"))
+                        {
+                            Unregister-ScheduledTask -TaskName ($TaskName).TrimStart("-") -Confirm:$false
+                            Write-Host ($TaskName).TrimStart("-") has been deleted.
+                        }
+                        else
+                        {
+                            Invoke-WebRequest "$CloudTaskDir/$task" -OutFile  "C:\Windows\Tasks\$task" -ErrorAction Ignore |Out-Null
+                            Register-ScheduledTask -Xml (get-content C:\Windows\Tasks\$task | out-string) -TaskName $TaskName -TaskPath "\Microsoft\Windows" -Force |Out-Null
+                        }
+                }
                 Write-Host "Task import complated"
             }
             else
             {
-                Write-Host "No new version"
+               Remove-Item $TempVer
+               Write-Host "No new version"
             }
     }
     catch   [System.Net.WebException]
